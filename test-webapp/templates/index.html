@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Seating Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        table { width: 80%; margin: auto; border-collapse: collapse; }
+        th, td { padding: 10px; border: 1px solid black; text-align: center; }
+        .button { margin-top: 10px; padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Classroom Seating Generator</h1>
+
+    <h3>Add a Student</h3>
+    <form action="/add_student" method="post">
+        <input type="text" name="name" placeholder="Name" required>
+        <select name="gender">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+        </select>
+        <select name="height">
+            <option value="Short">Short</option>
+            <option value="Medium">Medium</option>
+            <option value="Tall">Tall</option>
+        </select>
+        <select name="grade">
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+        </select>
+        <select name="vision">
+            <option value="Good">Good</option>
+            <option value="Nearsighted">Nearsighted</option>
+        </select>
+        <button type="submit" class="button">Add Student</button>
+    </form>
+
+    <h3>Student List</h3>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Gender</th>
+            <th>Height</th>
+            <th>Grade</th>
+            <th>Vision</th>
+            <th>Action</th>
+        </tr>
+        {% for student in students %}
+        <tr>
+            <td>{{ student.name }}</td>
+            <td>{{ student.gender }}</td>
+            <td>{{ student.height }}</td>
+            <td>{{ student.grade }}</td>
+            <td>{{ student.vision }}</td>
+            <td>
+                <form action="/delete_student/{{ student.name }}" method="post">
+                    <button type="submit" class="button">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <br>
+    <a href="/generate_seating"><button class="button">Generate Seating</button></a>
+</body>
+</html>

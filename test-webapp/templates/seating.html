@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seating Arrangement</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .grid-container { 
+            display: grid; 
+            grid-template-columns: repeat(8, 1fr); 
+            gap: 5px; 
+            width: 80%; 
+            margin: auto; 
+        }
+        .seat { 
+            padding: 10px; 
+            background-color: lightgray; 
+            border: 1px solid black; 
+            text-align: center;
+            cursor: grab;
+            user-select: none;
+        }
+        .dragging {
+            opacity: 0.5;
+        }
+        .button { margin-top: 10px; padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Generated Seating Arrangement</h1>
+    
+    <div class="grid-container" id="seatingChart">
+        {% for row in seating %}
+            {% for student in row %}
+                <div class="seat {% if not student %}empty-seat{% endif %}" 
+                     draggable="true" 
+                     ondragstart="drag(event)" 
+                     ondragover="allowDrop(event)" 
+                     ondrop="drop(event)">
+                    <span class="student-name">{{ student.name if student else "Empty" }}</span><br>
+                    <span class="student-info">{{ student.gender if student else "" }} {{ student.height if student else "" }}</span>
+                    {% if student and student.vision == "Nearsighted" %}
+                        <span class="vision-label">👓</span>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>        
+    
+    <br>
+    <button onclick="exportAsImage()" class="button">Export as JPEG</button>
+    <button onclick="exportAsPDF()" class="button">Export as PDF</button>
+    <button onclick="saveSeatingToFile()" class="button">Download JSON</button>
+    <input type="file" id="fileInput" class="button" onchange="loadSeatingFromFile()">
+    <a href="/"><button class="button">Back</button></a>
+
+    <script>
+        let draggedElement = null;
+
+        function drag(event) {
+            draggedElement = event.target;
+            event.dataTransfer.setData("text/plain", draggedElement.innerHTML);
+            setTimeout(() => draggedElement.classList.add("dragging"), 0);
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            if (draggedElement && event.target.classList.contains("seat")) {
+                let tempHTML = event.target.innerHTML;
+                event.target.innerHTML = draggedElement.innerHTML;
+                draggedElement.innerHTML = tempHTML;
+            }
+            draggedElement.classList.remove("dragging");
+            draggedElement = null;
+        }
+
+        document.addEventListener("dragend", () => {
+            if (draggedElement) {
+                draggedElement.classList.remove("dragging");
+                draggedElement = null;
+            }
+        });
+
+        
+        function saveSeatingToFile() {
+            let seatingData = [];
+            document.querySelectorAll(".grid-container .seat").forEach(seat => {
+                let name = seat.querySelector(".student-name").innerText;
+                let info = seat.querySelector(".student-info").innerText.split(" | ");
+                let vision = seat.innerHTML.includes("👓") ? "Nearsighted" : "Good";
+                
+                if (name !== "Empty") {
+                    seatingData.push({
+                        "name": name,
+                        "gender": info[0] || "",
+                        "height": info[1] || "",
+                        "vision": vision
+                    });
+                } else {
+                    seatingData.push(null);
+                }
+            });
+
+            let blob = new Blob([JSON.stringify(seatingData, null, 2)], { type: "application/json" });
+            let a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "seating_arrangement.json";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function loadSeatingFromFile() {
+            let fileInput = document.getElementById("fileInput");
+            let file = fileInput.files[0];
+
+            if (!file) {
+                alert("Please select a file.");
+                return;
+            }
+
+            let reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    let data = JSON.parse(event.target.result);
+                    let seatingChart = document.getElementById("seatingChart");
+                    let seats = seatingChart.querySelectorAll(".seat");
+
+                    data.forEach((student, index) => {
+                        if (student) {
+                            seats[index].innerHTML = `
+                                <span class="student-name">${student.name}</span><br>
+                                <span class="student-info">${student.gender} | ${student.height}</span>
+                                ${student.vision === "Nearsighted" ? '<span class="vision-label">👓</span>' : ''}
+                            `;
+                        } else {
+                            seats[index].innerHTML = `<span class="student-name">Empty</span>`;
+                        }
+                    });
+
+                    alert("Seating arrangement loaded successfully!");
+                } catch (error) {
+                    alert("Invalid JSON file. Please select a valid seating arrangement file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+    function exportAsImage() {
+        let seatingChart = document.getElementById("seatingChart");
+
+        html2canvas(seatingChart, { scale: 2, useCORS: true }).then(canvas => {
+            let ctx = canvas.getContext("2d");
+
+            let extendedCanvas = document.createElement("canvas");
+            extendedCanvas.width = canvas.width + 10; 
+            extendedCanvas.height = canvas.height;
+            let extendedCtx = extendedCanvas.getContext("2d");
+
+            extendedCtx.fillStyle = "white";
+            extendedCtx.fillRect(0, 0, extendedCanvas.width, extendedCanvas.height);
+            extendedCtx.drawImage(canvas, 0, 0);
+
+            let link = document.createElement("a");
+            link.href = extendedCanvas.toDataURL("image/jpeg", 1.0);
+            link.download = "seating_arrangement.jpg";
+            link.click();
+        });
+    }
+
+    function exportAsImage() {
+        let seatingChart = document.getElementById("seatingChart");
+
+        let rect = seatingChart.getBoundingClientRect();
+        html2canvas(seatingChart, {
+            scale: 2, 
+            useCORS: true,
+            width: rect.width,  
+            height: rect.height 
+        }).then(canvas => {
+            let link = document.createElement("a");
+            link.href = canvas.toDataURL("image/jpeg", 1.0);
+            link.download = "seating_arrangement.jpg";
+            link.click();
+        });
+    }
+
+    function exportAsPDF() {
+        let { jsPDF } = window.jspdf;
+        let seatingChart = document.getElementById("seatingChart");
+
+        let rect = seatingChart.getBoundingClientRect(); 
+
+        html2canvas(seatingChart, {
+            scale: 2,
+            useCORS: true,
+            width: rect.width,
+            height: rect.height
+        }).then(canvas => {
+            let imgData = canvas.toDataURL("image/jpeg", 1.0);
+            let pdf = new jsPDF("p", "mm", "a4");
+
+            let imgWidth = 190;
+            let imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            pdf.addImage(imgData, "JPEG", 10, 10, imgWidth, imgHeight);
+            pdf.save("seating_arrangement.pdf");
+        });
+    }
+    </script>
+</body>
+</html>
